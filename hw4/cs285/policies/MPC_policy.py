@@ -34,6 +34,7 @@ class MPCPolicy(BasePolicy):
         # TODO(Q1) uniformly sample trajectories and return an array of
         # dimensions (num_sequences, horizon, self.ac_dim) in the range
         # [self.low, self.high]
+        random_action_sequences = np.random.uniform(self.low, self.high, size=(num_sequences, horizon, self.ac_dim))
         return random_action_sequences
 
     def get_action(self, obs):
@@ -58,8 +59,9 @@ class MPCPolicy(BasePolicy):
             predicted_sum_of_rewards_per_model, axis=0)  # [ens, N] --> N
 
         # pick the action sequence and return the 1st element of that sequence
-        best_action_sequence = None  # TODO (Q2)
-        action_to_take = None  # TODO (Q2)
+        indices = np.argmax(predicted_rewards)
+        best_action_sequence = candidate_action_sequences[indices]  # TODO (Q2)
+        action_to_take = best_action_sequence[0,:]  # TODO (Q2)
         return action_to_take[None]  # Unsqueeze the first index
 
     def calculate_sum_of_rewards(self, obs, candidate_action_sequences, model):
@@ -75,7 +77,13 @@ class MPCPolicy(BasePolicy):
         :return: numpy array with the sum of rewards for each action sequence.
         The array should have shape [N].
         """
-        sum_of_rewards = None  # TODO (Q2)
+        sum_of_rewards = np.zeros(self.N)  # TODO (Q2)
+        cur_obs = np.full((self.N, self.ob_dim), obs)
+        reward = self.env.get_reward(cur_obs, np.squeeze(candidate_action_sequences[:,0,:]))[0]
+        sum_of_rewards += reward
+        for i in range(self.horizon-1):
+          cur_obs = model.get_prediction(cur_obs, np.squeeze(candidate_action_sequences[:,i,:]), self.data_statistics)
+          sum_of_rewards += self.env.get_reward(cur_obs, np.squeeze(candidate_action_sequences[:,i+1,:]))[0]
         # For each candidate action sequence, predict a sequence of
         # states for each dynamics model in your ensemble.
         # Once you have a sequence of predicted states from each model in
